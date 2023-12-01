@@ -21,51 +21,60 @@ ui <- pageWithSidebar(
                 max = 1,
                 value = 0.5,
                 step = 0.01),
-    p("Circles on maps show species presences")
+    p("Basemaps (study area and variables) obtained with the 'geodata' R package and plotted with the 'terra' R package. Predictions obtained with the 'stats::glm' function. Model evaluation metrics computed and plotted with the 'modEvA' R package.")
   ),
 
   mainPanel(
-    fluidRow(
-      column(width = 5,
-             h4("Original predictions"),
-             plotOutput('map_pred_cont')
-      ),
+    tabsetPanel(type = "tabs",
 
-      column(width = 5,
-             h4("Binarized predictions"),
-             plotOutput('map_pred_01')
-      )#,
+                tabPanel("Prediction maps",
+                         column(width = 6,
+                                h4("Original predictions"),
+                                plotOutput('map_pred_cont'),
+                                p("Circles mark observed species presences. Pixel colours represent model predictions.")
+                         ),
 
-      # column(width = 3,
-      #        plotOutput('confumap')
-      # )
-    ),
+                         column(width = 6,
+                                h4("Binarized predictions"),
+                                plotOutput('map_pred_01')
+                         )
+                ),
 
-    fluidRow(
-      column(width = 5,
-             fluidRow(
-               column(width = 12,
-                      h4("Confusion map"),
-                      plotOutput('confumap')
-               )
-             ),
+                tabPanel("Confusion plots",
+                         column(width = 5,
+                                h4("Confusion matrix"),
+                                tableOutput('confumat')
+                         ),
 
-             fluidRow(
-               column(width = 12,
-                      h4("Confusion matrix"),
-                      tableOutput('confumat')
-               )
-             )
-      ),
+                         column(width = 7,
+                                h4("Confusion map"),
+                                plotOutput('confumap')
+                         )
+                ),
 
-      column(width = 5,
-             h4("Threshold-based metrics"),
-             plotOutput('threshmeas')
-      )#,
+                tabPanel("Threshold-based metrics",
+                         column(width = 8,
+                                h4("Metrics based on the confusion matrix"),
+                                plotOutput('threshmeas')
+                         ),
 
-      # column(3,
-      #        plotOutput('similarity')
-      # )
+                         column(width = 4,
+                                h4("Similarity indices"),
+                                plotOutput('simil')
+                         )
+                ),
+
+                tabPanel("AUC",
+                         column(width = 6,
+                                h4("ROC curve"),
+                                plotOutput('ROC_curve')
+                         ),
+
+                         column(width = 6,
+                                h4("Precision-Recall curve"),
+                                plotOutput('PR_curve')
+                         )
+                )
     )
   )
 )
@@ -87,20 +96,20 @@ server <- function(input, output) {
   output$map_pred_cont <- renderPlot({
     plot(pred, axes = FALSE, mar = c(0, 0, 0, 3))
     plot(ib, border = "brown", add = TRUE)
-    points(occ, pch = 1, cex = 4, col = "grey30", lwd = 2)
-    text(pred, pred_vals, cex = 0.7, halo = TRUE)
+    points(occ, pch = 1, cex = 5, col = "grey30", lwd = 2)
+    text(pred, pred_vals, cex = 0.7, halo = TRUE, clip = FALSE)
   })
 
   output$map_pred_01 <- renderPlot({
     pred_thr <- modEvA::applyThreshold(obs = occ, pred = pred, thresh = thr(), verbosity = 0)
-    plot(pred_thr, axes = FALSE, mar = c(0, 0, 0, 3))
-    points(occ, pch = 1, cex = 4, col = "grey30", lwd = 2)
+    plot(pred_thr, axes = FALSE, mar = c(0, 0, 0, 3), legend = "bottomright", clip = FALSE)
+    points(occ, pch = 1, cex = 5, col = "grey30", lwd = 2)
     plot(ib, border = "brown", add = TRUE)
   })
 
   output$confumap <- renderPlot({
     confumap <- modEvA::confusionLabel(obs = occ, pred = pred, thresh = thr(), verbosity = 0)
-    plot(confumap, col = c("orange", "lightblue", "red", "blue"), mar = c(0, 0, 0, 7), legend = FALSE)
+    plot(confumap, col = c("orange", "lightblue", "red", "blue"), mar = c(0, 0, 0, 7), legend = FALSE, axes = FALSE, clip = FALSE)
     legend(x = 4, y = 44, legend = c("TruePos", "FalsePos", "TrueNeg", "FalseNeg"), fil = c("blue", "lightblue", "red", "orange"), bty = "n", xpd = NA)
     plot(ib, border = "brown", lwd = 2, add = TRUE)
   })
@@ -116,9 +125,22 @@ server <- function(input, output) {
     modEvA::threshMeasures(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1))
   })
 
-  # output$similarity <- renderPlot({
-  #   modEvA::similarity(obs = occ, pred = pred, thresh = thr())
-  # })
+  output$simil <- renderPlot({
+    par(mar = c(7, 3, 2, 1))
+    modEvA::similarity(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1))
+  })
+
+  output$ROC_curve <- renderPlot({
+    par(mar = c(3, 3, 2, 1))
+    auc <- modEvA::AUC(obs = occ, pred = pred)
+    points(auc$thresholds[auc$thresholds$thresholds == thr(), c("false.pos.rate", "sensitivity")], pch = 20, cex = 3, col = "royalblue")
+  })
+
+  output$PR_curve <- renderPlot({
+    par(mar = c(3, 3, 2, 1))
+    pr <- modEvA::AUC(obs = occ, pred = pred, curve = "PR")
+    points(pr$thresholds[pr$thresholds$thresholds == thr(), c("sensitivity", "precision")], pch = 20, cex = 3, col = "royalblue")
+  })
 
 }
 
