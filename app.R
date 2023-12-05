@@ -20,8 +20,8 @@ ui <- pageWithSidebar(
                 min = 0,
                 max = 1,
                 value = 0.5,
-                step = 0.01),
-    radioButtons(inputId = "type", label = "", choices = c("basic", "full"), selected = "basic"),
+                step = 0.1),
+    radioButtons(inputId = "type", label = "Metrics set:", choices = c("basic", "full"), selected = "basic"),
     hr(),
     p("Basemaps (study area and variables) obtained with the 'geodata' R package and processed with the 'terra' R package. Model evaluation metrics computed and plotted with the 'modEvA' R package."),  # Predictions obtained with the 'stats::glm' function and rescaled with 'modEvA::quantReclass' for visual effect.
     p("The R code behind this app is available on ", a(href = "https://github.com/AMBarbosa/modevapp", "GitHub", .noWS = "after"), ".")
@@ -44,8 +44,7 @@ ui <- pageWithSidebar(
                          ),
 
                          fluidRow(
-                           p(style="text-align: center;",
-                             "Circles mark observed species presences. Pixel colours and values show (rounded) model predictions.")
+                           p("Circles mark observed species presences. Pixel colours and values show (rounded) model predictions.", style = "text-align: center;")
                          )
                 ),
 
@@ -76,14 +75,21 @@ ui <- pageWithSidebar(
                 ),
 
                 tabPanel("AUC",
-                         column(width = 6,
-                                # h4("ROC curve"),
-                                plotOutput('ROC_curve')
+                         fluidRow(
+                           column(width = 6,
+                                  # h4("ROC curve"),
+                                  plotOutput('ROC_curve')
+                           ),
+
+                           column(width = 6,
+                                  # h4("Precision-Recall curve"),
+                                  plotOutput('PR_curve')
+                           )
                          ),
 
-                         column(width = 6,
-                                # h4("Precision-Recall curve"),
-                                plotOutput('PR_curve')
+                         fluidRow(
+                           h4("Curve values"),
+                           div(tableOutput("AUC_table"), style = "font-size:80%")
                          )
                 )
     )
@@ -109,14 +115,15 @@ server <- function(input, output) {
     terra::plot(pred, axes = FALSE, mar = c(0, 0, 2, 3), main = "Original predictions", font.main = 1, cex.main = 1.5)
     terra::plot(grid, lwd = 0.1, add = TRUE)
     terra::plot(ib, border = "brown", add = TRUE)
-    points(occ, pch = 1, cex = 5, col = "grey30", lwd = 2)
+    points(occ, pch = 1, cex = 5, col = "darkblue", lwd = 2)
     text(pred, pred_vals, cex = 0.7, halo = TRUE)
   })
 
   output$map_pred_01 <- renderPlot({
     pred_thr <- modEvA::applyThreshold(obs = occ, pred = pred, thresh = thr())
-    terra::plot(pred_thr, axes = FALSE, mar = c(0, 0, 2, 3), legend = "bottomright", main = "Threshold-converted predictions", font.main = 1, cex.main = 1.4)
-    points(occ, pch = 1, cex = 5, col = "grey30", lwd = 2)
+    terra::plot(pred_thr, axes = FALSE, mar = c(0, 0, 2, 3), legend = "bottomright", main = "Threshold-conve
+                rted predictions", font.main = 1, cex.main = 1.4)
+    points(occ, pch = 1, cex = 5, col = "darkblue", lwd = 2)
     terra::plot(grid, lwd = 0.1, add = TRUE)
     terra::plot(ib, border = "brown", add = TRUE)
   })
@@ -142,7 +149,7 @@ server <- function(input, output) {
   output$threshmeas <- renderPlot({
     par(mar = c(7, 3, 3, 1))
     if (input$type == "basic") metrics <- c("Sensitivity", "Specificity", "CCR", "TSS", "kappa")
-    if (input$type == "full") metrics <- modEvA::modEvAmethods("threshMeasures")[-grep("OddsRatio", modEvAmethods("threshMeasures"))]
+    if (input$type == "full") metrics <- modEvA::modEvAmethods("threshMeasures")[-grep("OddsRatio", modEvA::modEvAmethods("threshMeasures"))]
     modEvA::threshMeasures(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1), measures = metrics, standardize = input$type == "full", main = "Metrics based on the confusion matrix", font.main = 1, cex.main = 1.4)
   })
 
@@ -153,14 +160,25 @@ server <- function(input, output) {
 
   output$ROC_curve <- renderPlot({
     par(mar = c(5, 4.5, 2, 1))
-    auc <- modEvA::AUC(obs = occ, pred = pred, main = "ROC curve", font.main = 1, cex.main = 1.4, ticks = input$type == "full")  # , plot.preds = input$type == "full"
+    auc <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, main = "ROC curve", font.main = 1, cex.main = 1.4)  # , ticks = input$type == "full", plot.preds = input$type == "full"
     points(auc$thresholds[auc$thresholds$thresholds == thr(), c("false.pos.rate", "sensitivity")], pch = 20, cex = 3, col = "darkturquoise")
   })
+
+  output$AUC_table <- renderTable({
+    # print("Curve values\n")
+    # if (input$type == "basic") auc$thresholds[ , c("thresholds", "n.preds", "sensitivity", "specificity")]
+    # else if (input$type == "full") auc$thresholds[ , c("thresholds", "n.preds", "sensitivity", "specificity", "precision")]
+    if (input$type == "basic") data.frame(threshold = round(auc$thresholds$thresholds, 1), N_preds = as.integer(auc$thresholds$n.preds), auc$thresholds[ , c("sensitivity", "specificity")])
+    else if (input$type == "full") data.frame(threshold = round(auc$thresholds$thresholds, 1), N_preds = as.integer(auc$thresholds$n.preds), auc$thresholds[ , c("sensitivity", "specificity", "precision")])
+  },
+  rownames = FALSE, striped = TRUE, hover = TRUE, bordered = TRUE
+  )
+
 
   output$PR_curve <- renderPlot({
     if (input$type == "full") {
       par(mar = c(5, 4.5, 2, 1))
-      pr <- modEvA::AUC(obs = occ, pred = pred, curve = "PR", main = "Precision-Recall curve", font.main = 1, cex.main = 1.4, ticks = input$type == "full")  # , plot.preds = input$type == "full"
+      pr <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, curve = "PR", main = "Precision-Recall curve", font.main = 1, cex.main = 1.4)  # , ticks = input$type == "full", plot.preds = input$type == "full"
       points(pr$thresholds[pr$thresholds$thresholds == thr(), c("sensitivity", "precision")], pch = 20, cex = 3, col = "darkturquoise")
     }
   })

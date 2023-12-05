@@ -11,7 +11,7 @@ ib <- ib[order(expanse(ib), decreasing = TRUE)[1:2], ]
 plot(ib)
 
 wclim <- geodata::worldclim_global(var = "bio", res = 10, path = "data")  # less disk space than wclim_country, where 'res' is not an option
-plot(wclim)
+plot(wclim[[1]])
 wclim <- crop(wclim, ib, snap = "out", mask = TRUE)
 plot(wclim[[1]])
 res(wclim)
@@ -29,15 +29,19 @@ precipitation <- sub("NaN", "", precipitation)
 
 par(mfrow = c(1, 2))
 
-plot(wclim[[1]], axes = FALSE, mar = c(1, 1, 2, 4), main = "Temperature")
+plot(wclim[["bio_1"]], axes = FALSE, mar = c(1, 1, 2, 4), main = "Temperature")
 plot(ib, border = "brown", lwd = 2, add = TRUE)
-text(wclim[[1]], temperature, cex = 0.7, halo = TRUE)
+text(wclim[["bio_1"]], temperature, cex = 0.7, halo = TRUE)
 
-plot(wclim[[2]], axes = FALSE, mar = c(1, 1, 2, 4), main = "Precipitation")
+plot(wclim[["bio_12"]], axes = FALSE, mar = c(1, 1, 2, 4), main = "Precipitation")
 plot(ib, border = "brown", lwd = 2, add = TRUE)
-text(wclim[[1]], precipitation, cex = 0.7, halo = TRUE)
+text(wclim[["bio_12"]], precipitation, cex = 0.7, halo = TRUE)
 
-occ_inds <- c(1:7, 9:10, 17:18)
+# make some virtual species occurrences:
+plot(wclim[[1]])
+text(terra::crds(wclim), terra::cells(wclim))
+# occ_inds <- c(1:7, 9:10, 17:18)
+occ_inds <- c(1:7, 9:11, 13, 17:18, 25)
 occs <- crds(wclim)[occ_inds, ]
 points(occs, pch = 20, col = "black", cex = 2)
 
@@ -64,6 +68,8 @@ plot(ib, border = "brown", lwd = 2, add = TRUE)
 
 hist(pred)
 
+
+# change preds for better visual effect:
 # pred <- modEvA::quantReclass(pred)
 set.seed(8)
 values(pred) <- jitter(values(pred), amount = 0.15)
@@ -99,6 +105,7 @@ linmod$coefficients[2]
 cor(d$pres, d$pred, use = "pairwise")
 
 
+# export files for app:
 terra::writeRaster(pred, "data/pred.tif", overwrite = TRUE)
 terra::writeVector(ib, "data/ib.gpkg", overwrite = TRUE)
 write.csv(occs, "data/occ.csv", row.names = FALSE)
