@@ -7,15 +7,15 @@ countries <- geodata::world(path = "data")
 ib <- subset(countries, countries$NAME_0 %in% c("Portugal", "Spain"))
 plot(ib)
 ib <- disagg(ib)
-ib <- ib[order(expanse(ib), decreasing = TRUE)[1:2], ]
+ib <- ib[order(terra::expanse(ib), decreasing = TRUE)[1:2], ]
 plot(ib)
 
 wclim <- geodata::worldclim_global(var = "bio", res = 10, path = "data")  # less disk space than wclim_country, where 'res' is not an option
 plot(wclim[[1]])
-wclim <- crop(wclim, ib, snap = "out", mask = TRUE)
+wclim <- terra::crop(wclim, ib, snap = "out", mask = TRUE)
 plot(wclim[[1]])
 res(wclim)
-wclim <- aggregate(wclim, 10, na.rm = TRUE)
+wclim <- terra::aggregate(wclim, 10, na.rm = TRUE)
 plot(wclim[[1]])
 plot(ib, add = TRUE)
 
@@ -92,17 +92,22 @@ head(d)
 d[5:15, ]
 
 # plot(d$pres, d$pred, pch = 20, col = adjustcolor("black", 0.5))
-plot(d$pres, d$pred, pch = 1, xlab = "observed", ylab = "predicted", axes = FALSE, lwd = 1.5)
+plot(d$pres, d$pred, pch = 1, xlab = "observed", ylab = "predicted", axes = FALSE)
 box()
 axis(1, at = c(0, 1))
 axis(2)
 
 linmod <- lm(pred ~ pres, data = d)
+linmod_standardized <- lm(scale(pred) ~ scale(pres), data = d)
+
 abline(linmod, col = "royalblue", lwd = 2)
+abline(linmod_standardized, col = "darkred", lwd = 2)
 
 linmod$coefficients[2]
+linmod_standardized$coefficients[2]
 
-cor(d$pres, d$pred, use = "pairwise")
+cor(d$pres, d$pred, use = "complete.obs")
+cor(scale(d$pres), scale(d$pred), use = "complete.obs")
 
 
 # export files for app:
