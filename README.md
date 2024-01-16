@@ -1,4 +1,4 @@
-# **mod**el **ev**aluation **app**
+# modevapp: **mod**el **ev**aluation **app**
 
 This repo contains the code for a Shiny app that uses the 'modEvA' R package to show how some evaluation metrics of species distribution models change with user-defined parameters such as threshold values.
 

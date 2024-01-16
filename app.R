@@ -26,11 +26,12 @@ ui <- pageWithSidebar(
                 value = 0.5,
                 step = 0.1),
 
-    radioButtons(inputId = "metrics", label = "Metrics:", choices = c("basic", "all"), selected = "basic"),
+    radioButtons(inputId = "metrics", label = "Metrics:", choices = c("basic", "comprehensive"), selected = "basic"),
 
-    hr(),
+    hr(),  # barely visible horizontal line
+    # p(""),  # space between lines
 
-    span("Basemaps (study area and variables) obtained with the"),
+    span("Basemaps (study region and variables) obtained with the"),
     strong("geodata"),
     span("R package and processed with the"),
     strong("terra"),
@@ -73,7 +74,7 @@ ui <- pageWithSidebar(
                          column(width = 6,
                                 # h4("Confusion map"),
                                 plotOutput('confumap'),
-                                p("ATTENTION! Section under construction, map categories not yet right!")
+                                # p("ATTENTION! Section under construction, map categories not yet right!")
                          )
                 ),
 
@@ -146,12 +147,11 @@ server <- function(input, output) {
 
   output$confumap <- renderPlot({
     confumap <- modEvA::confusionLabel(obs = occ, pred = pred, thresh = thr())
-    terra::plot(confumap, col = c("orange", "lightblue", "red", "blue"), mar = c(0, 0, 2, 3), legend = FALSE, axes = FALSE, main = "Confusion map", font.main = 1, cex.main = 1.4)
+    # terra::plot(confumap, col = c("orange", "lightblue", "red", "blue"), mar = c(0, 0, 2, 3), legend = FALSE, axes = FALSE, main = "Confusion map", font.main = 1, cex.main = 1.4)
+    # legend(x = 0, y = 38.5, legend = c("TruePos", "FalsePos", "TrueNeg", "FalseNeg"), fill = c("blue", "lightblue", "red", "orange"), bty = "n", xpd = NA)
+    coltab(confumap) <- data.frame(values = 1:4, cols = c("orange", "lightblue", "red", "blue"))
+    terra::plot(confumap, mar = c(0, 0, 2, 3), legend = "bottomright", axes = FALSE, main = "Confusion map", font.main = 1, cex.main = 1.4)
     terra::plot(grid, lwd = 0.1, add = TRUE)
-    # levels(confumap) <- data.frame(value = 1:4, type = c("TruePos", "FalsePos", "TrueNeg", "FalseNeg"), clr = c("orange", "lightblue", "red", "blue"))
-    # # levels(confumap)
-    # terra::plot(confumap, col = c("blue", "lightblue", "red", "orange"), mar = c(0, 0, 0, 7), legend = FALSE, axes = FALSE, clip = FALSE)
-    legend(x = 0, y = 38.5, legend = c("TruePos", "FalsePos", "TrueNeg", "FalseNeg"), fill = c("blue", "lightblue", "red", "orange"), bty = "n", xpd = NA)
     plot(ib, border = "brown", add = TRUE)
   })
 
@@ -165,36 +165,36 @@ server <- function(input, output) {
   output$threshmeas <- renderPlot({
     par(mar = c(7, 3, 3, 1))
     if (input$metrics == "basic") metrics <- c("Sensitivity", "Specificity", "CCR", "TSS", "kappa")
-    if (input$metrics == "all") metrics <- modEvA::modEvAmethods("threshMeasures")[-grep("OddsRatio", modEvA::modEvAmethods("threshMeasures"))]
-    modEvA::threshMeasures(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1), measures = metrics, standardize = input$metrics == "all", main = "Metrics based on the confusion matrix", font.main = 1, cex.main = 1.4)
+    if (input$metrics == "comprehensive") metrics <- modEvA::modEvAmethods("threshMeasures")[-grep("OddsRatio", modEvA::modEvAmethods("threshMeasures"))]
+    modEvA::threshMeasures(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1), measures = metrics, standardize = input$metrics == "comprehensive", main = "Metrics based on the confusion matrix", font.main = 1, cex.main = 1.4)
   })
 
   output$simil <- renderPlot({
     par(mar = c(7, 3, 3, 1))
-    if (input$metrics == "all") modEvA::similarity(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1), main = "Similarity indices", font.main = 1, cex.main = 1.4)
+    if (input$metrics == "comprehensive") modEvA::similarity(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1), main = "Similarity indices", font.main = 1, cex.main = 1.4)
   })
 
   output$ROC_curve <- renderPlot({
     par(mar = c(5, 4.5, 2, 1))
-    auc <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, main = "ROC curve", font.main = 1, cex.main = 1.4, grid = TRUE)  # , ticks = input$metrics == "all", plot.preds = input$metrics == "all"
+    auc <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, main = "ROC curve", font.main = 1, cex.main = 1.4, grid = TRUE, grid.lty = 3)  # , ticks = input$metrics == "comprehensive", plot.preds = input$metrics == "comprehensive"
     points(auc$thresholds[auc$thresholds$thresholds == thr(), c("false.pos.rate", "sensitivity")], pch = 20, cex = 3, col = "darkturquoise")
   })
 
   output$AUC_table <- renderTable({
     # print("Curve values\n")
     # if (input$metrics == "basic") auc$thresholds[ , c("thresholds", "n.preds", "sensitivity", "specificity")]
-    # else if (input$metrics == "all") auc$thresholds[ , c("thresholds", "n.preds", "sensitivity", "specificity", "precision")]
+    # else if (input$metrics == "comprehensive") auc$thresholds[ , c("thresholds", "n.preds", "sensitivity", "specificity", "precision")]
     auc <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, plot = FALSE)  # apparently 'auc' needs to be created again here, otherwise error
     if (input$metrics == "basic") data.frame(threshold = round(auc$thresholds$thresholds, 1), N_preds = as.integer(auc$thresholds$n.preds), auc$thresholds[ , c("sensitivity", "specificity")])
-    else if (input$metrics == "all") data.frame(threshold = round(auc$thresholds$thresholds, 1), N_preds = as.integer(auc$thresholds$n.preds), auc$thresholds[ , c("sensitivity", "specificity", "precision")])
+    else if (input$metrics == "comprehensive") data.frame(threshold = round(auc$thresholds$thresholds, 1), N_preds = as.integer(auc$thresholds$n.preds), auc$thresholds[ , c("sensitivity", "specificity", "precision")])
   },
   rownames = FALSE, striped = TRUE, hover = TRUE, bordered = TRUE
   )
 
   output$PR_curve <- renderPlot({
-    if (input$metrics == "all") {
+    if (input$metrics == "comprehensive") {
       par(mar = c(5, 4.5, 2, 1))
-      pr <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, curve = "PR", main = "Precision-Recall curve", font.main = 1, cex.main = 1.4, grid = TRUE)  # , ticks = input$metrics == "all", plot.preds = input$metrics == "all"
+      pr <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, curve = "PR", main = "Precision-Recall curve", font.main = 1, cex.main = 1.4, grid = TRUE, grid.lty = 3)  # , ticks = input$metrics == "comprehensive", plot.preds = input$metrics == "comprehensive"
       points(pr$thresholds[pr$thresholds$thresholds == thr(), c("sensitivity", "precision")], pch = 20, cex = 3, col = "darkturquoise")
     }
   })
