@@ -26,7 +26,7 @@ ui <- pageWithSidebar(
                 value = 0.5,
                 step = 0.1),
 
-    radioButtons(inputId = "metrics", label = "Metrics:", choices = c("basic", "comprehensive"), selected = "basic"),
+    radioButtons(inputId = "metrics", label = "Metrics set:", choices = c("basic", "full"), selected = "basic"),
 
     hr(),  # barely visible horizontal line
     # p(""),  # space between lines
@@ -147,16 +147,20 @@ server <- function(input, output) {
 
   output$confumap <- renderPlot({
     confumap <- modEvA::confusionLabel(obs = occ, pred = pred, thresh = thr())
-    # terra::plot(confumap, col = c("orange", "lightblue", "red", "blue"), mar = c(0, 0, 2, 3), legend = FALSE, axes = FALSE, main = "Confusion map", font.main = 1, cex.main = 1.4)
-    # legend(x = 0, y = 38.5, legend = c("TruePos", "FalsePos", "TrueNeg", "FalseNeg"), fill = c("blue", "lightblue", "red", "orange"), bty = "n", xpd = NA)
-    coltab(confumap) <- data.frame(values = 1:4, cols = c("orange", "lightblue", "red", "blue"))
-    terra::plot(confumap, mar = c(0, 0, 2, 3), legend = "bottomright", axes = FALSE, main = "Confusion map", font.main = 1, cex.main = 1.4)
+
+    # # set colours of raster categories (though this is supposedly already done in the 'confusionLabel' function...):
+    # colr_table <- data.frame(lev = as.factor(c("TruePos", "FalsePos", "TrueNeg", "FalseNeg")), col = c("blue", "lightblue", "red", "orange"))
+    # existing_levs <- colr_table$lev %in% levels(confumap)[[1]]$cat
+    # terra::coltab(confumap) <- data.frame(
+    #   values = droplevels(colr_table$lev[existing_levs]),
+    #   cols = colr_table$col[existing_levs])
+
+    terra::plot(confumap, mar = c(0, 0, 2, 2), axes = FALSE, legend = "bottomright", main = "Confusion map", font.main = 1, cex.main = 1.4)
     terra::plot(grid, lwd = 0.1, add = TRUE)
-    plot(ib, border = "brown", add = TRUE)
+    terra::plot(ib, border = "brown", add = TRUE)
   })
 
   output$confumat <- renderTable({
-    print("Confusion matrix\n")
     confumat <- modEvA::confusionMatrix(obs = occ, pred = pred, thresh = thr())
   },
   rownames = TRUE, striped = TRUE, hover = TRUE, bordered = TRUE
@@ -165,36 +169,36 @@ server <- function(input, output) {
   output$threshmeas <- renderPlot({
     par(mar = c(7, 3, 3, 1))
     if (input$metrics == "basic") metrics <- c("Sensitivity", "Specificity", "CCR", "TSS", "kappa")
-    if (input$metrics == "comprehensive") metrics <- modEvA::modEvAmethods("threshMeasures")[-grep("OddsRatio", modEvA::modEvAmethods("threshMeasures"))]
-    modEvA::threshMeasures(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1), measures = metrics, standardize = input$metrics == "comprehensive", main = "Metrics based on the confusion matrix", font.main = 1, cex.main = 1.4)
+    if (input$metrics == "full") metrics <- modEvA::modEvAmethods("threshMeasures")[-grep("OddsRatio", modEvA::modEvAmethods("threshMeasures"))]
+    modEvA::threshMeasures(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1), measures = metrics, standardize = input$metrics == "full", main = "Metrics based on the confusion matrix", font.main = 1, cex.main = 1.4)
   })
 
   output$simil <- renderPlot({
     par(mar = c(7, 3, 3, 1))
-    if (input$metrics == "comprehensive") modEvA::similarity(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1), main = "Similarity indices", font.main = 1, cex.main = 1.4)
+    if (input$metrics == "full") modEvA::similarity(obs = occ, pred = pred, thresh = thr(), ylim = c(-1, 1), main = "Similarity indices", font.main = 1, cex.main = 1.4)
   })
 
   output$ROC_curve <- renderPlot({
     par(mar = c(5, 4.5, 2, 1))
-    auc <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, main = "ROC curve", font.main = 1, cex.main = 1.4, grid = TRUE, grid.lty = 3)  # , ticks = input$metrics == "comprehensive", plot.preds = input$metrics == "comprehensive"
+    auc <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, main = "ROC curve", font.main = 1, cex.main = 1.4, grid = TRUE, grid.lty = 3)  # , ticks = input$metrics == "full", plot.preds = input$metrics == "full"
     points(auc$thresholds[auc$thresholds$thresholds == thr(), c("false.pos.rate", "sensitivity")], pch = 20, cex = 3, col = "darkturquoise")
   })
 
   output$AUC_table <- renderTable({
     # print("Curve values\n")
     # if (input$metrics == "basic") auc$thresholds[ , c("thresholds", "n.preds", "sensitivity", "specificity")]
-    # else if (input$metrics == "comprehensive") auc$thresholds[ , c("thresholds", "n.preds", "sensitivity", "specificity", "precision")]
+    # else if (input$metrics == "full") auc$thresholds[ , c("thresholds", "n.preds", "sensitivity", "specificity", "precision")]
     auc <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, plot = FALSE)  # apparently 'auc' needs to be created again here, otherwise error
     if (input$metrics == "basic") data.frame(threshold = round(auc$thresholds$thresholds, 1), N_preds = as.integer(auc$thresholds$n.preds), auc$thresholds[ , c("sensitivity", "specificity")])
-    else if (input$metrics == "comprehensive") data.frame(threshold = round(auc$thresholds$thresholds, 1), N_preds = as.integer(auc$thresholds$n.preds), auc$thresholds[ , c("sensitivity", "specificity", "precision")])
+    else if (input$metrics == "full") data.frame(threshold = round(auc$thresholds$thresholds, 1), N_preds = as.integer(auc$thresholds$n.preds), auc$thresholds[ , c("sensitivity", "specificity", "precision")])
   },
   rownames = FALSE, striped = TRUE, hover = TRUE, bordered = TRUE
   )
 
   output$PR_curve <- renderPlot({
-    if (input$metrics == "comprehensive") {
+    if (input$metrics == "full") {
       par(mar = c(5, 4.5, 2, 1))
-      pr <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, curve = "PR", main = "Precision-Recall curve", font.main = 1, cex.main = 1.4, grid = TRUE, grid.lty = 3)  # , ticks = input$metrics == "comprehensive", plot.preds = input$metrics == "comprehensive"
+      pr <- modEvA::AUC(obs = occ, pred = pred, interval = 0.1, curve = "PR", main = "Precision-Recall curve", font.main = 1, cex.main = 1.4, grid = TRUE, grid.lty = 3)  # , ticks = input$metrics == "full", plot.preds = input$metrics == "full"
       points(pr$thresholds[pr$thresholds$thresholds == thr(), c("sensitivity", "precision")], pch = 20, cex = 3, col = "darkturquoise")
     }
   })
