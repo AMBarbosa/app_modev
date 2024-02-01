@@ -81,6 +81,15 @@ ui <- pageWithSidebar(
                          )
                 ),
 
+                tabPanel("Density plot",
+                         column(width = 12,
+                                plotOutput('preddensity')
+                         ),
+                         fluidRow(
+                           p("See ", a(href = "https://spatial-ecology.net/docs/build/html/_images/ROC_curves.png", "this image"), "(top left) to aid interpretation.", style = "text-align: center;")
+                         )
+                ),
+
                 tabPanel("Threshold-dependent metrics",
                          column(width = 8,
                                 # h4("Metrics based on the confusion matrix"),
@@ -167,7 +176,7 @@ server <- function(input, output) {
 
     # set colours of raster categories (though this is supposedly already done in the 'confusionLabel' function...):
     confumap <- modEvA::confusionLabel(obs = occ, pred = pred, thresh = thr(), plot = FALSE)
-    colr_table <- data.frame(lev = as.factor(c("TruePos", "FalsePos", "TrueNeg", "FalseNeg")), col = c("blue", "lightblue", "red", "orange"))
+    colr_table <- data.frame(lev = as.factor(c("TruePos", "FalsePos", "TrueNeg", "FalseNeg")), col = c("royalblue", "lightblue", "red", "orange"))
     existing_levs <- colr_table$lev %in% levels(confumap)[[1]]$cat
     terra::coltab(confumap) <- data.frame(
       values = droplevels(colr_table$lev[existing_levs]),
@@ -178,6 +187,12 @@ server <- function(input, output) {
     terra::plot(ib, border = "brown", add = TRUE)
   })
 
+  output$preddensity <- renderPlot({
+    modEvA::predDensity(obs = occ, pred = pred, type = "both", border = NA, breaks = seq(0, 1, by = 0.05), xlim = c(0, 1), font.main = 1, cex.main = 1.45)
+    abline(v = thr(), col = "darkturquoise")
+  }#,
+  #width = 600, height = 300
+  )
 
   output$threshmeas <- renderPlot({
     par(mar = c(7, 3, 3, 1))
