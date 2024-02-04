@@ -43,7 +43,7 @@ ui <- pageWithSidebar(
     span("R package."),
 
     p(""),  # space between lines
-    p("By A. Márcia Barbosa (", a(href = "https://modtools.wordpress.com", "https://modtools.wordpress.com", .noWS = "outside"), "). R code available on ", a(href = "https://github.com/AMBarbosa/modevapp", "GitHub"), " under a Creative Commons Attribution-ShareAlike (CC BY-SA) licence.")
+    p("App by A. Márcia Barbosa (", a(href = "https://modtools.wordpress.com", "https://modtools.wordpress.com", .noWS = "outside"), "). R code available on ", a(href = "https://github.com/AMBarbosa/modevapp", "GitHub"), " under a Creative Commons Attribution-ShareAlike (CC BY-SA) licence.")
   ),
 
   mainPanel(
@@ -189,7 +189,7 @@ server <- function(input, output) {
 
   output$preddensity <- renderPlot({
     modEvA::predDensity(obs = occ, pred = pred, type = "both", border = NA, breaks = seq(0, 1, by = 0.05), xlim = c(0, 1), font.main = 1, cex.main = 1.45)
-    abline(v = thr(), col = "darkturquoise")
+    abline(v = thr(), col = "darkturquoise", lwd = 3)
   }#,
   #width = 600, height = 300
   )
